@@ -5,9 +5,17 @@ module.exports = {
             script: 'index.js',
             instances: 1,
             exec_mode: 'cluster',
-            env: {
-                'SERVER_PORT': 80
+            watch: ['configs', 'controllers', '.'],
+            ignore_watch : ['node_modules'],
+            watch_options: {
+                followSymlinks: false
             },
+            env: {
+                'SERVER_PORT': 3000
+            },
+            env_production: {
+                'SERVER_PORT': 80
+            }
         },
     ]
 };
