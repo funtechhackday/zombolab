@@ -38,6 +38,9 @@ const putUserCards = async (ctx, next) => {
     }
 
     let user = await User.findOne({_id: uid});
+    if (user === null) {
+        ctx.throw(404, 'User not found');
+    }
     user.cards = params.cards;
 
     await user.save();
