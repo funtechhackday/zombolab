@@ -26,13 +26,19 @@
 кроме случаев апгрейда (см. Апгрейды).
 """
 import os
+import math
 from pymongo import MongoClient
+import logging
+import random
+
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 init_map = """WWWWWWWWWW
 W..H...2.W
 W..T.W...W
-W.1......W
+WH1....H.W
 WWWWWWWWWW"""
 
 
@@ -77,25 +83,37 @@ class Human:
         self.y = y
 
     def move(self, state, zombies):
+        moves = [(0, 0), (-1, 0), (1, 0), (0, 1), (0, -1)]
+        random.shuffle(moves)
+        for dx, dy in moves:
+            if state[self.x + dx][self.y + dy] in FREE_TILES:
+                state = self.update_state(state, self.x + dx, self.y + dy)
+        return state
+
         # move far away from zombies
-        current_score = self.get_score(self.x, self.y, zombies)
-        possible_moves = {(0, 0): current_score}
-        for x, y in ((-1, 0), (1, 0), (0, 1), (0, -1)):
+        logging.info('human currently: {},{}'.format(self.x, self.y))
+        logging.info('zombies are: {}'.format(
+            '; '.join('{},{}'.format(z.x, z.y) for z in zombies)))
+        for x, y in ((0, 0), (-1, 0), (1, 0), (0, 1), (0, -1)):
             if state[self.x + x][self.y + y] not in FREE_TILES:
                 continue
             possible_moves[(x, y)] = \
                 self.get_score(self.x + x, self.y + y, zombies)
-        print('human possible moves: ', possible_moves)
-        move_x, move_y = min(possible_moves.items(), key=lambda x: x[1])[0]
-        print('human will do: ', move_x, move_y)
+        logging.info('human possible moves: {}'.format(possible_moves))
+        move_x, move_y = max(possible_moves.items(), key=lambda x: x[1])[0]
+        logging.info('human will do: {}, {}'.format(move_x, move_y))
+        state = self.update_state(state, self.x + move_x, self.y + move_y)
+        return state
+
+    def update_state(self, state, new_x, new_y):
         state[self.x][self.y] = 'T'
-        state[self.x + move_x][self.y + move_y] = 'H'
-        self.x += move_x
-        self.y += move_y
+        state[new_x][new_y] = 'H'
+        self.x = new_x
+        self.y = new_y
         return state
 
     def get_score(self, y, x, zombies):
-        return sum([(z.x - x)**2 + (z.y - y)**2 for z in zombies])
+        return sum([math.sqrt((z.x - x)**2 + (z.y - y)**2) for z in zombies])
 
 
 class BattleSimulation:
@@ -142,19 +160,20 @@ class BattleSimulation:
         return states
 
     def pretty_print(self, state):
-        print(state, '\n')
+        logging.info('\n' + state)
 
 
 if __name__ == '__main__':
 
+    '''
     client = MongoClient(os.environ['MONGODB_CONNECTION'])
     db = client.zombolab
     for fight in db.fights.find():
         print(fight)
         for player in db.users.find({'_id': {"$in": fight.get('players')}}):
             print(player)
-    
+    '''
     bs = BattleSimulation(init_map, tactics)
-    states = bs.calculate_states(turns=20)
+    states = bs.calculate_states(turns=3)
     for state in states:
         bs.pretty_print(state)
